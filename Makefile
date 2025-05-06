@@ -7,10 +7,10 @@ CXXFLAGS = -Wall -Wextra -std=c++17 -O2
 GTK_FLAGS = `pkg-config --cflags --libs gtk+-3.0`
 
 # Target executable name
-TARGET = block_breaker
+TARGET = blockbreaker
 
 # Source files
-SRCS = block_breaker.cpp
+SRCS = blockbreaker.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
