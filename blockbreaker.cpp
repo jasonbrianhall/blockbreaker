@@ -46,8 +46,24 @@ struct Ball {
     }
     
     void draw(cairo_t* cr) {
-        cairo_set_source_rgb(cr, 1.0, 0.8, 0.0);  // Yellow color
+        // Create gradient for 3D effect
+        cairo_pattern_t *gradient = cairo_pattern_create_radial(
+            x - radius/3, y - radius/3, 0,
+            x, y, radius
+        );
+        cairo_pattern_add_color_stop_rgb(gradient, 0.0, 1.0, 1.0, 0.5);  // Bright center
+        cairo_pattern_add_color_stop_rgb(gradient, 0.7, 1.0, 0.8, 0.0);  // Regular yellow
+        cairo_pattern_add_color_stop_rgb(gradient, 1.0, 0.8, 0.6, 0.0);  // Darker edge
+        
+        // Draw ball with gradient
         cairo_arc(cr, x, y, radius, 0, 2 * M_PI);
+        cairo_set_source(cr, gradient);
+        cairo_fill(cr);
+        cairo_pattern_destroy(gradient);
+        
+        // Add highlight reflection
+        cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.3);
+        cairo_arc(cr, x - radius/3, y - radius/3, radius/3, 0, 2 * M_PI);
         cairo_fill(cr);
     }
 };
@@ -60,8 +76,38 @@ struct Paddle {
         : x(startX), y(startY), width(w), height(h) {}
     
     void draw(cairo_t* cr) {
-        cairo_set_source_rgb(cr, 0.0, 0.7, 1.0);  // Blue color
-        cairo_rectangle(cr, x - width / 2, y - height / 2, width, height);
+        // Create gradient for 3D effect
+        cairo_pattern_t *gradient = cairo_pattern_create_linear(
+            x - width/2, y - height/2, 
+            x + width/2, y + height/2
+        );
+        cairo_pattern_add_color_stop_rgb(gradient, 0.0, 0.2, 0.8, 1.0);  // Lighter blue top
+        cairo_pattern_add_color_stop_rgb(gradient, 1.0, 0.0, 0.4, 0.8);  // Darker blue bottom
+        
+        // Main paddle body with gradient
+        cairo_rectangle(cr, x - width/2, y - height/2, width, height);
+        cairo_set_source(cr, gradient);
+        cairo_fill_preserve(cr);
+        cairo_pattern_destroy(gradient);
+        
+        // Add top and left highlight
+        cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.5);
+        cairo_set_line_width(cr, 2);
+        cairo_move_to(cr, x - width/2, y + height/2);
+        cairo_line_to(cr, x - width/2, y - height/2);
+        cairo_line_to(cr, x + width/2, y - height/2);
+        cairo_stroke(cr);
+        
+        // Add bottom and right shadow
+        cairo_set_source_rgba(cr, 0.0, 0.0, 0.3, 0.5);
+        cairo_move_to(cr, x + width/2, y - height/2);
+        cairo_line_to(cr, x + width/2, y + height/2);
+        cairo_line_to(cr, x - width/2, y + height/2);
+        cairo_stroke(cr);
+        
+        // Add inner bevel for extra 3D effect
+        cairo_set_source_rgba(cr, 0.1, 0.6, 0.9, 1.0);
+        cairo_rectangle(cr, x - width/2 + 3, y - height/2 + 3, width - 6, height - 6);
         cairo_fill(cr);
     }
     
@@ -114,7 +160,6 @@ struct Block {
         cairo_line_to(cr, x, y);
         cairo_line_to(cr, x + width, y);
         cairo_stroke(cr);
-        
         // Add shadow on bottom and right edges
         cairo_set_source_rgba(cr, 0, 0, 0, 0.5);  // Darker shadow border
         cairo_move_to(cr, x + width, y);
@@ -186,12 +231,17 @@ public:
         ball->move();
         
         // Check for collisions with walls
-        if (ball->x - ball->radius <= 0 || ball->x + ball->radius >= WINDOW_WIDTH) {
-            ball->dx = -ball->dx;  // Reverse horizontal direction
+        if (ball->x - ball->radius <= 0) {
+            ball->x = ball->radius; // Prevent getting stuck on left wall
+            ball->dx = std::abs(ball->dx); // Force moving right
+        } else if (ball->x + ball->radius >= WINDOW_WIDTH) {
+            ball->x = WINDOW_WIDTH - ball->radius; // Prevent getting stuck on right wall
+            ball->dx = -std::abs(ball->dx); // Force moving left
         }
         
         if (ball->y - ball->radius <= 0) {
-            ball->dy = -ball->dy;  // Reverse vertical direction
+            ball->y = ball->radius; // Prevent getting stuck on top wall
+            ball->dy = std::abs(ball->dy); // Force moving down
         }
         
         // Check for collision with paddle
